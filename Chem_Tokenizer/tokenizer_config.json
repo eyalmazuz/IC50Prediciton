@@ -1,0 +1,9 @@
+{
+  "clean_up_tokenization_spaces": true,
+  "max_model_input_sizes": {
+    "input_ids": 2048
+  },
+  "model_max_length": 2048,
+  "padding_side": "right",
+  "tokenizer_class": "PreTrainedTokenizerFast"
+}
