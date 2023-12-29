@@ -1,0 +1,12 @@
+name: IC50Prediction
+channels:
+  - defaults
+dependencies:
+  - numpy
+  - pandas
+  - scikit-learn
+  - pytorch
+  - transformers
+  - pip:
+    - wandb
+    - x_transformers

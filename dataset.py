@@ -31,7 +31,7 @@ class ProteinSMILESDataset(Dataset):
         return data
 
 
-class TransformerCollate():
+class TransformerCollate:
     def __init__(self, path: str) -> None:
         self.tokenizer = AutoTokenizer.from_pretrained(path)
 
