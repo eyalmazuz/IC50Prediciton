@@ -3,6 +3,7 @@ import torch
 from torch import nn
 from torch import optim
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 
 class IC50BertTrainer:
@@ -22,7 +23,9 @@ class IC50BertTrainer:
             self.model.train()
             total_loss = 0
 
-            for batch in self.dataloader:
+            tqdm_dataloader = tqdm(self.dataloader, desc=f"Epoch {epoch+1}/{self.num_epochs}")
+
+            for batch in tqdm_dataloader:
                 input_ids = batch['input_ids']
                 token_type_ids = batch['token_type_ids']
                 attention_mask = batch['attention_mask'].type(torch.BoolTensor)
@@ -42,5 +45,9 @@ class IC50BertTrainer:
 
                 total_loss += loss.item()
 
+                tqdm_dataloader.set_postfix(loss=loss.item())
+
             average_loss = total_loss / len(self.dataloader)
+            tqdm_dataloader.set_postfix(avg_loss=average_loss)
+            tqdm_dataloader.close()
             print(f'Epoch {epoch + 1}/{self.num_epochs}, Loss: {average_loss:.4f}')
