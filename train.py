@@ -19,6 +19,9 @@ class IC50BertTrainer:
         self.optimizer = optimizer
 
     def train(self) -> None:
+        """
+        Train the specified model using the provided DataLoader, criterion and optimizer for number of epochs.
+        """
         for epoch in range(self.num_epochs):
             self.model.train()
             total_loss = 0
