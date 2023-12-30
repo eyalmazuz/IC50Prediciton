@@ -29,6 +29,10 @@ class IC50BertTrainer:
         """
         Train the specified model using the provided DataLoader, criterion and optimizer for number of epochs.
         """
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model.to(device)
+        self.criterion.to(device)
+
         for epoch in range(self.num_epochs):
             self.model.train()
             total_loss = 0
@@ -38,10 +42,10 @@ class IC50BertTrainer:
             )
 
             for batch in tqdm_dataloader:
-                input_ids = batch["input_ids"]
-                token_type_ids = batch["token_type_ids"]
-                attention_mask = batch["attention_mask"].type(torch.BoolTensor)
-                labels = batch["labels"].view(-1, 1).type(torch.float32)
+                input_ids = batch["input_ids"].to(device)
+                token_type_ids = batch["token_type_ids"].to(device)
+                attention_mask = batch["attention_mask"].type(torch.BoolTensor).to(device)
+                labels = batch["labels"].view(-1, 1).type(torch.float32).to(device)
 
                 self.optimizer.zero_grad()
 

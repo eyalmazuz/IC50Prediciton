@@ -87,10 +87,10 @@ def main() -> None:
 
     collate_fn = TransformerCollate(DataConsts.TOKENIZER_FOLDER)
     train_dataloader = DataLoader(
-        train_dataset, batch_size=4, shuffle=True, collate_fn=collate_fn
+        train_dataset, batch_size=4, shuffle=True, collate_fn=collate_fn, num_workers=8
     )
     test_dataloader = DataLoader(
-        test_dataset, batch_size=4, shuffle=False, collate_fn=collate_fn
+        test_dataset, batch_size=4, shuffle=False, collate_fn=collate_fn, num_workers=8
     )
 
     # Initialize and train model
