@@ -3,51 +3,57 @@ from numpy.typing import ArrayLike
 import os
 import pandas as pd
 import torch
+from torch import nn
+from torch import optim
 from torch.utils.data import DataLoader
 from dataset import ProteinSMILESDataset, TransformerCollate
 from model import IC50Bert
+from train import IC50BertTrainer
+from sklearn.model_selection import train_test_split
 from consts import *
 import wandb
+from collections import defaultdict
 
 
 class IC50Evaluator:
     """
     Object used to train and evaluate the IC50Bert model
     """
-
-    def __init__(self, model: IC50Bert, dataloader: DataLoader):
+    def __init__(self, model: IC50Bert, dataloader: DataLoader) -> None:
         self.model = model
         self.dataloader = dataloader
 
-    def evaluate(self) -> (ArrayLike, ArrayLike):
+    def evaluate(self) -> Dict[str, float]:
         """
-        Set the model to evaluation mode and iterate through the dataloader to get model predictions
-        :return: Tuple of ArrayLikes - (True labels, Model Predictions)
+        Set the model to evaluation mode and iterate through the dataloader to calculate metrics
+        :return: Dict of metrics names and values
         """
         self.model.eval()
-        all_labels = []
-        all_predictions = []
+        metrics = defaultdict(float)
 
         with torch.no_grad():
             for batch in self.dataloader:
-                inputs, labels = batch
-                outputs = self.model(*inputs)
+                input_ids = batch['input_ids']
+                token_type_ids = batch['token_type_ids']
+                attention_mask = batch['attention_mask'].type(torch.BoolTensor)
+                labels = batch['labels'].view(-1, 1).type(torch.float32)
 
-                all_labels.extend(labels.numpy())
-                all_predictions.extend(outputs.numpy())
+                outputs = self.model(
+                    ids=input_ids,
+                    token_type_ids={"token_type_ids": token_type_ids},
+                    mask=attention_mask
+                )
 
-        return all_labels, all_predictions
+                # Update metrics
+                for metric_name, metric_func in EvalConsts.METRICS.items():
+                    metric_value = metric_func(labels.cpu().numpy(), outputs.cpu().numpy())
+                    metrics[metric_name] += metric_value
 
-    def calculate_metrics(self) -> Dict[str, float]:
-        labels, predictions = self.evaluate()
+            # Calculate average metrics
+            for metric_name in metrics:
+                metrics[metric_name] /= len(self.dataloader)
 
-        eval_metrics = {}
-        for metric_name, metric_func in EvalConsts.METRICS.items():
-            metric_value = metric_func(labels, predictions)
-            eval_metrics[metric_name] = metric_value
-            print(f"{metric_name}: {metric_value:.4f}")
-
-        return eval_metrics
+            return metrics
 
     @staticmethod
     def log_metrics_to_wandb(
@@ -70,24 +76,29 @@ class IC50Evaluator:
 
 def main() -> None:
     # Load and initialize dataloader with dataset
-    data_path = os.path.join(os.getcwd(), DataConsts.dataset_name)
+    data_path = os.path.join(os.getcwd(), DataConsts.DATASET_NAME)
     df = pd.read_csv(data_path, sep="\t", low_memory=False)
+    train_df, test_df = train_test_split(df, test_size=0.25, random_state=42)
 
-    dataset = ProteinSMILESDataset(df)
-    collate_fn = TransformerCollate("Chem_Tokenizer")
-    dataloader = DataLoader(dataset, batch_size=4, shuffle=True, collate_fn=collate_fn)
+    train_dataset = ProteinSMILESDataset(train_df)
+    test_dataset = ProteinSMILESDataset(test_df)
+
+    collate_fn = TransformerCollate(DataConsts.TOKENIZER_FOLDER)
+    train_dataloader = DataLoader(train_dataset, batch_size=4, shuffle=True, collate_fn=collate_fn)
+    test_dataloader = DataLoader(test_dataset, batch_size=4, shuffle=False, collate_fn=collate_fn)
 
     # Initialize and train model
-    model = IC50Bert()
+    model = IC50Bert(num_tokens=len(collate_fn.tokenizer.get_vocab()),
+                     max_seq_len=collate_fn.tokenizer.model_max_length)
 
-    # TODO: Need to train the model
-    # model.train(model, dataloader, num_epochs=10, learning_rate=0.001)
+    criterion = nn.MSELoss()
+    optimizer = optim.Adam(model.parameters(), lr=TrainConsts.TRAINING_CONFIG['learning_rate'])
+    trainer = IC50BertTrainer(model, train_dataloader, TrainConsts.TRAINING_CONFIG['num_epochs'], criterion, optimizer)
+    trainer.train()
 
-    # Initialize the evaluator
-    evaluator = IC50Evaluator(model, dataloader)
-
-    # Calculate metrics
-    metrics = evaluator.calculate_metrics()
+    # Initialize the evaluator and Calculate metrics
+    evaluator = IC50Evaluator(model, test_dataloader)
+    metrics = evaluator.evaluate()
 
     # Log results to wandb
     # evaluator.log_metrics_to_wandb(metrics, run_name="test_run")
