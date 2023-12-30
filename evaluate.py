@@ -1,5 +1,4 @@
 from typing import Dict
-from numpy.typing import ArrayLike
 import os
 import pandas as pd
 import torch
@@ -10,7 +9,7 @@ from dataset import ProteinSMILESDataset, TransformerCollate
 from model import IC50Bert
 from train import IC50BertTrainer
 from sklearn.model_selection import train_test_split
-from consts import *
+from consts import DataConsts, TrainConsts, EvalConsts
 import wandb
 from collections import defaultdict
 
@@ -19,6 +18,7 @@ class IC50Evaluator:
     """
     Object used to train and evaluate the IC50Bert model
     """
+
     def __init__(self, model: IC50Bert, dataloader: DataLoader) -> None:
         self.model = model
         self.dataloader = dataloader
@@ -33,20 +33,22 @@ class IC50Evaluator:
 
         with torch.no_grad():
             for batch in self.dataloader:
-                input_ids = batch['input_ids']
-                token_type_ids = batch['token_type_ids']
-                attention_mask = batch['attention_mask'].type(torch.BoolTensor)
-                labels = batch['labels'].view(-1, 1).type(torch.float32)
+                input_ids = batch["input_ids"]
+                token_type_ids = batch["token_type_ids"]
+                attention_mask = batch["attention_mask"].type(torch.BoolTensor)
+                labels = batch["labels"].view(-1, 1).type(torch.float32)
 
                 outputs = self.model(
                     ids=input_ids,
                     token_type_ids={"token_type_ids": token_type_ids},
-                    mask=attention_mask
+                    mask=attention_mask,
                 )
 
                 # Update metrics
                 for metric_name, metric_func in EvalConsts.METRICS.items():
-                    metric_value = metric_func(labels.cpu().numpy(), outputs.cpu().numpy())
+                    metric_value = metric_func(
+                        labels.cpu().numpy(), outputs.cpu().numpy()
+                    )
                     metrics[metric_name] += metric_value
 
             # Calculate average metrics
@@ -84,21 +86,37 @@ def main() -> None:
     test_dataset = ProteinSMILESDataset(test_df)
 
     collate_fn = TransformerCollate(DataConsts.TOKENIZER_FOLDER)
-    train_dataloader = DataLoader(train_dataset, batch_size=4, shuffle=True, collate_fn=collate_fn)
-    test_dataloader = DataLoader(test_dataset, batch_size=4, shuffle=False, collate_fn=collate_fn)
+    train_dataloader = DataLoader(
+        train_dataset, batch_size=4, shuffle=True, collate_fn=collate_fn
+    )
+    test_dataloader = DataLoader(
+        test_dataset, batch_size=4, shuffle=False, collate_fn=collate_fn
+    )
 
     # Initialize and train model
-    model = IC50Bert(num_tokens=len(collate_fn.tokenizer.get_vocab()),
-                     max_seq_len=collate_fn.tokenizer.model_max_length)
+    model = IC50Bert(
+        num_tokens=len(collate_fn.tokenizer.get_vocab()),
+        max_seq_len=collate_fn.tokenizer.model_max_length,
+    )
 
     criterion = nn.MSELoss()
-    optimizer = optim.Adam(model.parameters(), lr=TrainConsts.TRAINING_CONFIG['learning_rate'])
-    trainer = IC50BertTrainer(model, train_dataloader, TrainConsts.TRAINING_CONFIG['num_epochs'], criterion, optimizer)
+    optimizer = optim.Adam(
+        model.parameters(), lr=TrainConsts.TRAINING_CONFIG["learning_rate"]
+    )
+
+    trainer = IC50BertTrainer(
+        model,
+        train_dataloader,
+        TrainConsts.TRAINING_CONFIG["num_epochs"],
+        criterion,
+        optimizer,
+    )
     trainer.train()
 
     # Initialize the evaluator and Calculate metrics
     evaluator = IC50Evaluator(model, test_dataloader)
     metrics = evaluator.evaluate()
+    print(metrics)
 
     # Log results to wandb
     # evaluator.log_metrics_to_wandb(metrics, run_name="test_run")
