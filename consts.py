@@ -16,12 +16,16 @@ class EvalConsts:
         "MSE": mean_squared_error,
         "MAPE": mean_absolute_percentage_error,
     }
-
+    VALIDATION_CONFIG = {
+        "num_folds": 5,
+        "repeats": 2
+    }
     WANDB_PROJ_NAME = "IC50 Prediction"
 
 
 class TrainConsts:
     TRAINING_CONFIG = {
+        "batch_size": 16,
         "num_epochs": 10,
         "learning_rate": 5e-3,
     }

@@ -1,6 +1,7 @@
 from typing import Dict
 import os
 import pandas as pd
+import numpy as np
 import torch
 from torch import nn
 from torch import optim
@@ -9,6 +10,7 @@ from dataset import ProteinSMILESDataset, TransformerCollate
 from model import IC50Bert
 from train import IC50BertTrainer
 from sklearn.model_selection import train_test_split
+from sklearn.model_selection import RepeatedKFold
 from consts import DataConsts, TrainConsts, EvalConsts
 import wandb
 from collections import defaultdict
@@ -79,51 +81,71 @@ class IC50Evaluator:
 
 
 def main() -> None:
+    all_metrics = []
     # Load and initialize dataloader with dataset
     data_path = os.path.join(os.getcwd(), DataConsts.DATASET_NAME)
     df = pd.read_csv(data_path, sep="\t", low_memory=False)
-    train_df, test_df = train_test_split(df.sample(frac=0.33), test_size=0.25, random_state=42)
-    train_df.reset_index(inplace=True)
-    test_df.reset_index(inplace=True)
-
-    train_dataset = ProteinSMILESDataset(train_df)
-    test_dataset = ProteinSMILESDataset(test_df)
-
     collate_fn = TransformerCollate(DataConsts.TOKENIZER_FOLDER)
-    train_dataloader = DataLoader(
-        train_dataset, batch_size=8, shuffle=True, collate_fn=collate_fn, num_workers=os.cpu_count()
-    )
-    test_dataloader = DataLoader(
-        test_dataset, batch_size=8, shuffle=False, collate_fn=collate_fn, num_workers=os.cpu_count()
-    )
 
-    # Initialize and train model
-    model = IC50Bert(
-        num_tokens=len(collate_fn.tokenizer.get_vocab()),
-        max_seq_len=collate_fn.tokenizer.model_max_length,
-    )
+    # train_df, test_df = train_test_split(df.sample(frac=0.33), test_size=0.25, random_state=42)
+    num_folds = EvalConsts.VALIDATION_CONFIG["num_folds"]
+    num_repeats = EvalConsts.VALIDATION_CONFIG["num_repeats"]
+    batch_size = TrainConsts.TRAINING_CONFIG["batch_size"]
+    rkf = RepeatedKFold(n_splits=num_folds, n_repeats=num_repeats, random_state=42)
 
-    criterion = nn.MSELoss()
-    optimizer = optim.AdamW(
-        model.parameters(), lr=TrainConsts.TRAINING_CONFIG["learning_rate"]
-    )
+    for fold, (train_idx, test_idx) in enumerate(rkf.split(df)):
+        train_df, test_df = df.iloc[train_idx], df.iloc[test_idx]
+        train_df.reset_index(inplace=True, drop=True)
+        test_df.reset_index(inplace=True, drop=True)
 
-    trainer = IC50BertTrainer(
-        model,
-        train_dataloader,
-        TrainConsts.TRAINING_CONFIG["num_epochs"],
-        criterion,
-        optimizer,
-    )
-    trainer.train()
+        train_dataset = ProteinSMILESDataset(train_df)
+        test_dataset = ProteinSMILESDataset(test_df)
 
-    # Initialize the evaluator and Calculate metrics
-    evaluator = IC50Evaluator(model, test_dataloader)
-    metrics = evaluator.evaluate()
-    print(metrics)
+        train_dataloader = DataLoader(
+            train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn, num_workers=os.cpu_count()
+        )
+        test_dataloader = DataLoader(
+            test_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn, num_workers=os.cpu_count()
+        )
+
+        # Initialize and train model
+        model = IC50Bert(
+            num_tokens=len(collate_fn.tokenizer.get_vocab()),
+            max_seq_len=collate_fn.tokenizer.model_max_length,
+        )
+
+        criterion = nn.MSELoss()
+        optimizer = optim.AdamW(
+            model.parameters(), lr=TrainConsts.TRAINING_CONFIG["learning_rate"]
+        )
+
+        trainer = IC50BertTrainer(
+            model,
+            train_dataloader,
+            TrainConsts.TRAINING_CONFIG["num_epochs"],
+            criterion,
+            optimizer,
+        )
+        trainer.train()
+
+        # Initialize the evaluator and Calculate metrics
+        evaluator = IC50Evaluator(model, test_dataloader)
+        metrics = evaluator.evaluate()
+        print(f"Fold {fold + 1}/{num_folds}, Repetition {fold // num_folds + 1} -\nMetrics: {metrics}")
+
+    # Calculate mean and standard deviation of metrics across all folds and repetitions
+    mean_metrics = {}
+    std_metrics = {}
+    for metric_name in EvalConsts.METRICS.keys():
+        metric_values = [fold_metrics[metric_name] for fold_metrics in all_metrics]
+        mean_metrics[metric_name] = np.mean(metric_values)
+        std_metrics[metric_name] = np.std(metric_values)
+
+    print("Mean Metrics:", mean_metrics)
+    print("Std Metrics:", std_metrics)
 
     # Log results to wandb
-    # evaluator.log_metrics_to_wandb(metrics, run_name="test_run")
+    evaluator.log_metrics_to_wandb(mean_metrics, run_name="RKFold_test_run")
 
 
 if __name__ == "__main__":
