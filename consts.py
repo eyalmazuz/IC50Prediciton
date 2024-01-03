@@ -23,5 +23,5 @@ class EvalConsts:
 class TrainConsts:
     TRAINING_CONFIG = {
         "num_epochs": 10,
-        "learning_rate": 0.001,
+        "learning_rate": 5e-3,
     }

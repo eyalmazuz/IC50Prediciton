@@ -44,7 +44,7 @@ class TransformerCollate:
             ligands, proteins, padding=True, truncation=True, return_tensors="pt"
         )
 
-        encodings["labels"] = torch.tensor(target_ic50)
+        encodings["labels"] = torch.tensor(target_ic50, dtype=torch.float32).view(-1, 1)
 
         return encodings
 

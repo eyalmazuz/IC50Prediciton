@@ -28,15 +28,17 @@ class IC50Evaluator:
         Set the model to evaluation mode and iterate through the dataloader to calculate metrics
         :return: Dict of metrics names and values
         """
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model.to(device)
         self.model.eval()
         metrics = defaultdict(float)
 
         with torch.no_grad():
             for batch in self.dataloader:
-                input_ids = batch["input_ids"]
-                token_type_ids = batch["token_type_ids"]
-                attention_mask = batch["attention_mask"].type(torch.BoolTensor)
-                labels = batch["labels"].view(-1, 1).type(torch.float32)
+                input_ids = batch["input_ids"].to(device)
+                token_type_ids = batch["token_type_ids"].to(device)
+                attention_mask = batch["attention_mask"].type(torch.BoolTensor).to(device)
+                labels = batch["labels"].to(device)
 
                 outputs = self.model(
                     ids=input_ids,
@@ -80,17 +82,19 @@ def main() -> None:
     # Load and initialize dataloader with dataset
     data_path = os.path.join(os.getcwd(), DataConsts.DATASET_NAME)
     df = pd.read_csv(data_path, sep="\t", low_memory=False)
-    train_df, test_df = train_test_split(df, test_size=0.25, random_state=42)
+    train_df, test_df = train_test_split(df.sample(frac=0.33), test_size=0.25, random_state=42)
+    train_df.reset_index(inplace=True)
+    test_df.reset_index(inplace=True)
 
     train_dataset = ProteinSMILESDataset(train_df)
     test_dataset = ProteinSMILESDataset(test_df)
 
     collate_fn = TransformerCollate(DataConsts.TOKENIZER_FOLDER)
     train_dataloader = DataLoader(
-        train_dataset, batch_size=4, shuffle=True, collate_fn=collate_fn, num_workers=8
+        train_dataset, batch_size=8, shuffle=True, collate_fn=collate_fn, num_workers=os.cpu_count()
     )
     test_dataloader = DataLoader(
-        test_dataset, batch_size=4, shuffle=False, collate_fn=collate_fn, num_workers=8
+        test_dataset, batch_size=8, shuffle=False, collate_fn=collate_fn, num_workers=os.cpu_count()
     )
 
     # Initialize and train model
@@ -100,7 +104,7 @@ def main() -> None:
     )
 
     criterion = nn.MSELoss()
-    optimizer = optim.Adam(
+    optimizer = optim.AdamW(
         model.parameters(), lr=TrainConsts.TRAINING_CONFIG["learning_rate"]
     )
 

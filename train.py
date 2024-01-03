@@ -45,7 +45,7 @@ class IC50BertTrainer:
                 input_ids = batch["input_ids"].to(device)
                 token_type_ids = batch["token_type_ids"].to(device)
                 attention_mask = batch["attention_mask"].type(torch.BoolTensor).to(device)
-                labels = batch["labels"].view(-1, 1).type(torch.float32).to(device)
+                labels = batch["labels"].to(device)
 
                 self.optimizer.zero_grad()
 

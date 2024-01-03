@@ -55,11 +55,11 @@ class IC50Bert(nn.Module):
             ids, mask=mask, embed_ids=token_type_ids, return_embeddings=True
         )  # (B, L, D)
 
-        print(outputs.shape)
+        # print(outputs.shape)
         pooled_outputs = outputs[:, 0]
         pooled_outputs = self.dropout(pooled_outputs)
 
-        print(pooled_outputs.shape)
+        # print(pooled_outputs.shape)
 
         logits = self.classifier(pooled_outputs)
 
