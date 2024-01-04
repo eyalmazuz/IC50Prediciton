@@ -149,5 +149,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    # TODO: implement KFold cross_validation
     main()

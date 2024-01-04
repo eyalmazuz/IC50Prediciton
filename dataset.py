@@ -1,5 +1,5 @@
 from typing import Dict, List, NamedTuple
-
+import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import Dataset, DataLoader
@@ -26,7 +26,10 @@ class ProteinSMILESDataset(Dataset):
         protein = row["BindingDB Target Chain Sequence"]
         target_ic50 = row["IC50 (nM)"]
 
-        data = ProteinData(ligand, protein, target_ic50)
+        # Calculate pIC50
+        target_pic50 = -np.log10(target_ic50)
+
+        data = ProteinData(ligand, protein, target_pic50)
 
         return data
 
