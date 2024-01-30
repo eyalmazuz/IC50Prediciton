@@ -97,7 +97,7 @@ def main() -> None:
     all_metrics = []
     # Load and initialize dataloader with dataset
     data_path = os.path.join(os.getcwd(), DataConsts.DATASET_NAME)
-    df = pd.read_csv(data_path, sep="\t", low_memory=False).sample(frac=0.1)
+    df = pd.read_csv(data_path, sep="\t", low_memory=False)# .sample(frac=0.1)
     collate_fn = TransformerCollate(DataConsts.TOKENIZER_FOLDER)
 
     # train_df, test_df = train_test_split(df.sample(frac=0.33), test_size=0.25, random_state=42)
