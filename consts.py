@@ -18,7 +18,7 @@ class EvalConsts:
     }
     VALIDATION_CONFIG = {
         "num_folds": 5,
-        "repeats": 2
+        "num_repeats": 2
     }
     WANDB_PROJ_NAME = "IC50 Prediction"
 
