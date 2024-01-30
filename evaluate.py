@@ -11,7 +11,7 @@ from model import IC50Bert
 from train import IC50BertTrainer
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import RepeatedKFold
-from consts import DataConsts, TrainConsts, EvalConsts, ModelParams
+from consts import DataConsts, TrainConsts, EvalConsts
 import wandb
 from collections import defaultdict
 
@@ -122,11 +122,12 @@ def main() -> None:
         )
 
         # Initialize and train model
+        model_params = TrainConsts.MODEL_PARAMS
         model = IC50Bert(
             num_tokens=collate_fn.tokenizer.vocab_size + 3,
             max_seq_len=collate_fn.tokenizer.model_max_length,
-            emb_dim=ModelParams.EMBED_DIM, dim=ModelParams.DIM,
-            depth=ModelParams.DEPTH, heads=ModelParams.HEADS
+            emb_dim=model_params["emb_dim"], dim=model_params["dim"],
+            depth=model_params["depth"], heads=model_params["heads"]
         )
 
         criterion = nn.MSELoss()

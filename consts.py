@@ -29,10 +29,9 @@ class TrainConsts:
         "num_epochs": 100,
         "learning_rate": 5e-4,
     }
-
-
-class ModelParams:
-    EMBED_DIM = 768
-    DIM = 768
-    DEPTH = 4
-    HEADS = 8
+    MODEL_PARAMS = {
+        "emb_dim": 768,
+        "dim": 768,
+        "depth": 4,
+        "heads": 8
+    }
