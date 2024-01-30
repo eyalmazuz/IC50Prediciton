@@ -8,6 +8,7 @@ class IC50Bert(nn.Module):
         self,
         num_tokens: int = 256,
         max_seq_len: int = 2048,
+        emb_dim: int = 512,
         num_type_ids: int = 2,
         dim: int = 512,
         depth: int = 2,
@@ -27,6 +28,7 @@ class IC50Bert(nn.Module):
         self.model = TransformerWrapper(
             num_tokens=num_tokens,
             max_seq_len=max_seq_len,
+            emb_dim=emb_dim,
             emb_dropout=emb_dropout,  # dropout after embedding
             embed_num_tokens={"token_type_ids": num_type_ids},
             attn_layers=Encoder(

@@ -14,7 +14,7 @@ class EvalConsts:
     METRICS = {
         "MAE": mean_absolute_error,
         "MSE": mean_squared_error,
-        "MAPE": mean_absolute_percentage_error,
+        # "MAPE": mean_absolute_percentage_error,
     }
     VALIDATION_CONFIG = {
         "num_folds": 5,
@@ -25,7 +25,7 @@ class EvalConsts:
 
 class TrainConsts:
     TRAINING_CONFIG = {
-        "batch_size": 16,
-        "num_epochs": 10,
-        "learning_rate": 5e-3,
+        "batch_size": 4,
+        "num_epochs": 100,
+        "learning_rate": 5e-4,
     }

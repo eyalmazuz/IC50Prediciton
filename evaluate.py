@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, List, Optional
 import os
 import pandas as pd
 import numpy as np
@@ -63,10 +63,11 @@ class IC50Evaluator:
 
     @staticmethod
     def log_metrics_to_wandb(
-        metrics_dict: Dict[str, float],
-        project_name: str = EvalConsts.WANDB_PROJ_NAME,
-        training_config: Dict[str, float] = TrainConsts.TRAINING_CONFIG,
-        run_name: str = None,
+            metrics_dict: Dict[str, float],
+            project_name: str = EvalConsts.WANDB_PROJ_NAME,
+            training_config: Dict[str, float] = TrainConsts.TRAINING_CONFIG,
+            run_name: str = None,
+            loss_history: Optional[List] = None
     ):
         """
         This method will log the provided metrics dictionary to wandb project
@@ -74,17 +75,29 @@ class IC50Evaluator:
         :param project_name: wandb project name where metrics will be logged. default name is set in consts.py
         :param training_config: dictionary of training hyperparameter configuration to log evaluation results
         :param run_name: parameter used to name the run in wandb. default is None in which case wandb will assign a name
+        :param loss_history: a List of [episodes, loss] to plot
         """
-        wandb.init(project=project_name, config=training_config, name=run_name)
+        wandb.init(project=project_name, entity='bgu-sise', config=training_config, name=run_name)
         wandb.log(metrics_dict)
+        if loss_history:
+            data = [[x + 1, y] for (x, y) in enumerate(loss_history)]
+            loss_table = wandb.Table(data=data, columns=["episodes", "batch_loss"])
+            wandb.log(
+                {
+                    "history_loss": wandb.plot.line(
+                        loss_table, "episodes", "batch_loss", title="Average episode loss vs episode"
+                    )
+                }
+            )
         wandb.finish()
 
 
 def main() -> None:
+    torch.cuda.empty_cache()
     all_metrics = []
     # Load and initialize dataloader with dataset
     data_path = os.path.join(os.getcwd(), DataConsts.DATASET_NAME)
-    df = pd.read_csv(data_path, sep="\t", low_memory=False)
+    df = pd.read_csv(data_path, sep="\t", low_memory=False).sample(frac=0.1)
     collate_fn = TransformerCollate(DataConsts.TOKENIZER_FOLDER)
 
     # train_df, test_df = train_test_split(df.sample(frac=0.33), test_size=0.25, random_state=42)
@@ -102,17 +115,15 @@ def main() -> None:
         test_dataset = ProteinSMILESDataset(test_df)
 
         train_dataloader = DataLoader(
-            train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn, num_workers=os.cpu_count()
+            train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn, num_workers=int(os.cpu_count()/2)
         )
         test_dataloader = DataLoader(
-            test_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn, num_workers=os.cpu_count()
+            test_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn, num_workers=int(os.cpu_count()/2)
         )
 
         # Initialize and train model
-        model = IC50Bert(
-            num_tokens=len(collate_fn.tokenizer.get_vocab()),
-            max_seq_len=collate_fn.tokenizer.model_max_length,
-        )
+        model = IC50Bert(num_tokens=collate_fn.tokenizer.vocab_size + 3,
+                         max_seq_len=collate_fn.tokenizer.model_max_length, emb_dim=768, dim=768, depth=4, heads=8)
 
         criterion = nn.MSELoss()
         optimizer = optim.AdamW(
@@ -126,11 +137,12 @@ def main() -> None:
             criterion,
             optimizer,
         )
-        trainer.train()
+        avg_episode_losses = trainer.train()
 
         # Initialize the evaluator and Calculate metrics
         evaluator = IC50Evaluator(model, test_dataloader)
         metrics = evaluator.evaluate()
+        all_metrics.append(metrics)
         print(f"Fold {fold + 1}/{num_folds}, Repetition {fold // num_folds + 1} -\nMetrics: {metrics}")
 
     # Calculate mean and standard deviation of metrics across all folds and repetitions
@@ -145,7 +157,7 @@ def main() -> None:
     print("Std Metrics:", std_metrics)
 
     # Log results to wandb
-    evaluator.log_metrics_to_wandb(mean_metrics, run_name="RKFold_test_run")
+    evaluator.log_metrics_to_wandb(mean_metrics, run_name="RKFold_test_run", loss_history=avg_episode_losses)
 
 
 if __name__ == "__main__":

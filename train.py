@@ -1,5 +1,6 @@
 from model import IC50Bert
 import torch
+from typing import List
 from torch import nn
 from torch import optim
 from torch.utils.data import DataLoader
@@ -25,13 +26,15 @@ class IC50BertTrainer:
         self.criterion = criterion
         self.optimizer = optimizer
 
-    def train(self) -> None:
+    def train(self) -> List:
         """
         Train the specified model using the provided DataLoader, criterion and optimizer for number of epochs.
+        :return: a List of average episode losses
         """
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model.to(device)
         self.criterion.to(device)
+        avg_episode_losses = []
 
         for epoch in range(self.num_epochs):
             self.model.train()
@@ -64,6 +67,8 @@ class IC50BertTrainer:
                 tqdm_dataloader.set_postfix(loss=loss.item())
 
             average_loss = total_loss / len(self.dataloader)
+            avg_episode_losses.append(round(average_loss, 4))
             tqdm_dataloader.set_postfix(avg_loss=average_loss)
             tqdm_dataloader.close()
             print(f"Epoch {epoch + 1}/{self.num_epochs}, Loss: {average_loss:.4f}")
+        return avg_episode_losses
