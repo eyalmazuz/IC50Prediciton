@@ -11,7 +11,7 @@ from model import IC50Bert
 from train import IC50BertTrainer
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import RepeatedKFold
-from consts import DataConsts, TrainConsts, EvalConsts
+from consts import DataConsts, TrainConsts, EvalConsts, ModelParams
 import wandb
 from collections import defaultdict
 
@@ -122,8 +122,12 @@ def main() -> None:
         )
 
         # Initialize and train model
-        model = IC50Bert(num_tokens=collate_fn.tokenizer.vocab_size + 3,
-                         max_seq_len=collate_fn.tokenizer.model_max_length, emb_dim=768, dim=768, depth=4, heads=8)
+        model = IC50Bert(
+            num_tokens=collate_fn.tokenizer.vocab_size + 3,
+            max_seq_len=collate_fn.tokenizer.model_max_length,
+            emb_dim=ModelParams.EMBED_DIM, dim=ModelParams.DIM,
+            depth=ModelParams.DEPTH, heads=ModelParams.HEADS
+        )
 
         criterion = nn.MSELoss()
         optimizer = optim.AdamW(
