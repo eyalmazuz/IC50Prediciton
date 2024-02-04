@@ -100,54 +100,54 @@ def main() -> None:
     df = pd.read_csv(data_path, sep="\t", low_memory=False)
     collate_fn = TransformerCollate(DataConsts.TOKENIZER_FOLDER)
 
-    # train_df, test_df = train_test_split(df.sample(frac=0.33), test_size=0.25, random_state=42)
-    num_folds = EvalConsts.VALIDATION_CONFIG["num_folds"]
-    num_repeats = EvalConsts.VALIDATION_CONFIG["num_repeats"]
+    train_df, test_df = train_test_split(df, test_size=0.2, random_state=42)
+    # num_folds = EvalConsts.VALIDATION_CONFIG["num_folds"]
+    # num_repeats = EvalConsts.VALIDATION_CONFIG["num_repeats"]
     batch_size = TrainConsts.TRAINING_CONFIG["batch_size"]
-    rkf = RepeatedKFold(n_splits=num_folds, n_repeats=num_repeats, random_state=42)
+    # rkf = RepeatedKFold(n_splits=num_folds, n_repeats=num_repeats, random_state=42)
+    #
+    # for fold, (train_idx, test_idx) in enumerate(rkf.split(df)):
+    #     train_df, test_df = df.iloc[train_idx], df.iloc[test_idx]
+    #     train_df.reset_index(inplace=True, drop=True)
+    #     test_df.reset_index(inplace=True, drop=True)
 
-    for fold, (train_idx, test_idx) in enumerate(rkf.split(df)):
-        train_df, test_df = df.iloc[train_idx], df.iloc[test_idx]
-        train_df.reset_index(inplace=True, drop=True)
-        test_df.reset_index(inplace=True, drop=True)
+    train_dataset = ProteinSMILESDataset(train_df)
+    test_dataset = ProteinSMILESDataset(test_df)
 
-        train_dataset = ProteinSMILESDataset(train_df)
-        test_dataset = ProteinSMILESDataset(test_df)
+    train_dataloader = DataLoader(
+        train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn, num_workers=os.cpu_count()
+    )
+    test_dataloader = DataLoader(
+        test_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn, num_workers=os.cpu_count()
+    )
 
-        train_dataloader = DataLoader(
-            train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn, num_workers=int(os.cpu_count()/2)
-        )
-        test_dataloader = DataLoader(
-            test_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn, num_workers=int(os.cpu_count()/2)
-        )
+    # Initialize and train model
+    model = IC50Bert(
+        num_tokens=collate_fn.tokenizer.vocab_size + 3,
+        max_seq_len=collate_fn.tokenizer.model_max_length,
+        emb_dim=ModelParams.EMBED_DIM, dim=ModelParams.DIM,
+        depth=ModelParams.DEPTH, heads=ModelParams.HEADS
+    )
 
-        # Initialize and train model
-        model = IC50Bert(
-            num_tokens=collate_fn.tokenizer.vocab_size + 3,
-            max_seq_len=collate_fn.tokenizer.model_max_length,
-            emb_dim=ModelParams.EMBED_DIM, dim=ModelParams.DIM,
-            depth=ModelParams.DEPTH, heads=ModelParams.HEADS
-        )
+    criterion = nn.MSELoss()
+    optimizer = optim.AdamW(
+        model.parameters(), lr=TrainConsts.TRAINING_CONFIG["learning_rate"]
+    )
 
-        criterion = nn.MSELoss()
-        optimizer = optim.AdamW(
-            model.parameters(), lr=TrainConsts.TRAINING_CONFIG["learning_rate"]
-        )
+    trainer = IC50BertTrainer(
+        model,
+        train_dataloader,
+        TrainConsts.TRAINING_CONFIG["num_epochs"],
+        criterion,
+        optimizer,
+    )
+    avg_episode_losses = trainer.train()
 
-        trainer = IC50BertTrainer(
-            model,
-            train_dataloader,
-            TrainConsts.TRAINING_CONFIG["num_epochs"],
-            criterion,
-            optimizer,
-        )
-        avg_episode_losses = trainer.train()
-
-        # Initialize the evaluator and Calculate metrics
-        evaluator = IC50Evaluator(model, test_dataloader)
-        metrics = evaluator.evaluate()
-        all_metrics.append(metrics)
-        print(f"Fold {fold + 1}/{num_folds}, Repetition {fold // num_folds + 1} -\nMetrics: {metrics}")
+    # Initialize the evaluator and Calculate metrics
+    evaluator = IC50Evaluator(model, test_dataloader)
+    metrics = evaluator.evaluate()
+    all_metrics.append(metrics)
+        # print(f"Fold {fold + 1}/{num_folds}, Repetition {fold // num_folds + 1} -\nMetrics: {metrics}")
 
     # Calculate mean and standard deviation of metrics across all folds and repetitions
     mean_metrics = {}
@@ -161,7 +161,7 @@ def main() -> None:
     print("Std Metrics:", std_metrics)
 
     # Log results to wandb
-    evaluator.log_metrics_to_wandb(mean_metrics, run_name="RKFold_test_run", loss_history=avg_episode_losses)
+    evaluator.log_metrics_to_wandb(mean_metrics, run_name="cluster_train_test_split", loss_history=avg_episode_losses)
 
     torch.save(model.state_dict(), os.join(os.getcwd(), 'IC50Pred_Model.pt'))
 
