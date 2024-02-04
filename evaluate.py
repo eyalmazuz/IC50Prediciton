@@ -163,6 +163,8 @@ def main() -> None:
     # Log results to wandb
     evaluator.log_metrics_to_wandb(mean_metrics, run_name="RKFold_test_run", loss_history=avg_episode_losses)
 
+    torch.save(model.state_dict(), os.join(os.getcwd(), 'IC50Pred_Model.pt'))
+
 
 if __name__ == "__main__":
     main()
