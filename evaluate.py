@@ -115,10 +115,10 @@ def main() -> None:
     test_dataset = ProteinSMILESDataset(test_df)
 
     train_dataloader = DataLoader(
-        train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn, num_workers=os.cpu_count()
+        train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn, num_workers=6
     )
     test_dataloader = DataLoader(
-        test_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn, num_workers=os.cpu_count()
+        test_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn, num_workers=6
     )
 
     # Initialize and train model
