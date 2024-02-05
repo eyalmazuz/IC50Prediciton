@@ -31,6 +31,8 @@ class IC50BertTrainer:
         Train the specified model using the provided DataLoader, criterion and optimizer for number of epochs.
         :return: a List of average episode losses
         """
+        if torch.cuda.is_available():
+            print("cuda detected, training on GPU")
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model.to(device)
         self.criterion.to(device)
