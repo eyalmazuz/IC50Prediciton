@@ -32,7 +32,9 @@ class IC50BertTrainer:
         :return: a List of average episode losses
         """
         if torch.cuda.is_available():
-            print("cuda detected, training on GPU")
+            print("cuda detected, training on GPU\n")
+        else:
+            print("cuda no detected, training on CPU\n")
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model.to(device)
         self.criterion.to(device)
