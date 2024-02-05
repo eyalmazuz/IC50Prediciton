@@ -93,7 +93,7 @@ class IC50Evaluator:
 
 
 def main() -> None:
-    wandb.login(key=EvalConsts.WANDB_PROJ_NAME)
+    wandb.login(key=EvalConsts.WANDB_KEY)
     all_metrics = []
     # Load and initialize dataloader with dataset
     data_path = os.path.join(os.getcwd(), DataConsts.DATASET_NAME)
