@@ -15,4 +15,4 @@ dependencies:
   - transformers
   - wandb
   - pip:
-    - x_transformers==1.26.2
+    - x_transformers==1.26
