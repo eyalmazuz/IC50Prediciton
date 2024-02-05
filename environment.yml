@@ -1,18 +1,16 @@
 name: IC50Prediction
 channels:
   - defaults
-  - nvidia
-  - pytorch
 dependencies:
   - python~=3.11.5
   - numpy
   - pandas
   - scikit-learn
-  - pytorch
-  - torchvision
-  - torchaudio
-  - pytorch-cuda=11.8
   - transformers
   - wandb
   - pip:
+    - --extra-index-url https://download.pytorch.org/whl/cu116
+    - torch
+    - torchvision
+    - torchaudio
     - x_transformers==1.26.2
