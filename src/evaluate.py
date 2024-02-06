@@ -6,14 +6,13 @@ import torch
 from torch import nn
 from torch import optim
 from torch.utils.data import DataLoader
-from dataset import ProteinSMILESDataset, TransformerCollate
-from model import IC50Bert
-from train import IC50BertTrainer
-from sklearn.model_selection import train_test_split
-from sklearn.model_selection import RepeatedKFold
-from consts import DataConsts, TrainConsts, EvalConsts, ModelParams
+from src.dataset import ProteinSMILESDataset, TransformerCollate
+from src.model import IC50Bert
+from src.train import IC50BertTrainer
+from src.consts import DataConsts, TrainConsts, EvalConsts, ModelParams
 import wandb
 from collections import defaultdict
+from sklearn.model_selection import train_test_split
 
 
 class IC50Evaluator:
@@ -21,26 +20,26 @@ class IC50Evaluator:
     Object used to train and evaluate the IC50Bert model
     """
 
-    def __init__(self, model: IC50Bert, dataloader: DataLoader) -> None:
+    def __init__(self, model: IC50Bert, dataloader: DataLoader, device: torch.device = torch.device("cuda")) -> None:
         self.model = model
         self.dataloader = dataloader
+        self.device = device
 
     def evaluate(self) -> Dict[str, float]:
         """
         Set the model to evaluation mode and iterate through the dataloader to calculate metrics
         :return: Dict of metrics names and values
         """
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.model.to(device)
+        self.model.to(self.device)
         self.model.eval()
         metrics = defaultdict(float)
 
         with torch.no_grad():
             for batch in self.dataloader:
-                input_ids = batch["input_ids"].to(device)
-                token_type_ids = batch["token_type_ids"].to(device)
-                attention_mask = batch["attention_mask"].type(torch.BoolTensor).to(device)
-                labels = batch["labels"].to(device)
+                input_ids = batch["input_ids"].to(self.device)
+                token_type_ids = batch["token_type_ids"].to(self.device)
+                attention_mask = batch["attention_mask"].type(torch.BoolTensor).to(self.device)
+                labels = batch["labels"].to(self.device)
 
                 outputs = self.model(
                     ids=input_ids,
@@ -65,6 +64,7 @@ class IC50Evaluator:
     def log_metrics_to_wandb(
             metrics_dict: Dict[str, float],
             project_name: str = EvalConsts.WANDB_PROJ_NAME,
+            project_entity: str = EvalConsts.WANDB_ENTITY,
             training_config: Dict[str, float] = TrainConsts.TRAINING_CONFIG,
             run_name: str = None,
             loss_history: Optional[List] = None
@@ -73,11 +73,12 @@ class IC50Evaluator:
         This method will log the provided metrics dictionary to wandb project
         :param metrics_dict: dict with metric names as keys and float values
         :param project_name: wandb project name where metrics will be logged. default name is set in consts.py
+        :param project_entity: entity name under which to find the wandb project
         :param training_config: dictionary of training hyperparameter configuration to log evaluation results
         :param run_name: parameter used to name the run in wandb. default is None in which case wandb will assign a name
         :param loss_history: a List of [episodes, loss] to plot
         """
-        wandb.init(project=project_name, entity='bgu-sise', config=training_config, name=run_name)
+        wandb.init(project=project_name, entity=project_entity, config=training_config, name=run_name)
         wandb.log(metrics_dict)
         if loss_history:
             data = [[x + 1, y] for (x, y) in enumerate(loss_history)]
@@ -94,26 +95,18 @@ class IC50Evaluator:
 
 def main() -> None:
     wandb.login(key=EvalConsts.WANDB_KEY)
-    all_metrics = []
     # Load and initialize dataloader with dataset
     data_path = os.path.join(os.getcwd(), DataConsts.DATASET_NAME)
     df = pd.read_csv(data_path, sep="\t", low_memory=False)
     collate_fn = TransformerCollate(DataConsts.TOKENIZER_FOLDER)
 
-    train_df, test_df = train_test_split(df, test_size=0.2, random_state=42)
-    # num_folds = EvalConsts.VALIDATION_CONFIG["num_folds"]
-    # num_repeats = EvalConsts.VALIDATION_CONFIG["num_repeats"]
-    batch_size = TrainConsts.TRAINING_CONFIG["batch_size"]
-    # rkf = RepeatedKFold(n_splits=num_folds, n_repeats=num_repeats, random_state=42)
-    #
-    # for fold, (train_idx, test_idx) in enumerate(rkf.split(df)):
-    #     train_df, test_df = df.iloc[train_idx], df.iloc[test_idx]
-    #     train_df.reset_index(inplace=True, drop=True)
-    #     test_df.reset_index(inplace=True, drop=True)
+    train_df, test_df = train_test_split(df, test_size=EvalConsts.VALIDATION_CONFIG["test_ratio"],
+                                         random_state=42)
 
     train_dataset = ProteinSMILESDataset(train_df)
     test_dataset = ProteinSMILESDataset(test_df)
 
+    batch_size = TrainConsts.TRAINING_CONFIG["batch_size"]
     train_dataloader = DataLoader(
         train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn, num_workers=6
     )
@@ -139,31 +132,18 @@ def main() -> None:
         train_dataloader,
         TrainConsts.TRAINING_CONFIG["num_epochs"],
         criterion,
-        optimizer,
+        optimizer
     )
     avg_episode_losses = trainer.train()
 
     # Initialize the evaluator and Calculate metrics
     evaluator = IC50Evaluator(model, test_dataloader)
     metrics = evaluator.evaluate()
-    all_metrics.append(metrics)
-        # print(f"Fold {fold + 1}/{num_folds}, Repetition {fold // num_folds + 1} -\nMetrics: {metrics}")
-
-    # Calculate mean and standard deviation of metrics across all folds and repetitions
-    mean_metrics = {}
-    std_metrics = {}
-    for metric_name in EvalConsts.METRICS.keys():
-        metric_values = [fold_metrics[metric_name] for fold_metrics in all_metrics]
-        mean_metrics[metric_name] = np.mean(metric_values)
-        std_metrics[metric_name] = np.std(metric_values)
-
-    print("Mean Metrics:", mean_metrics)
-    print("Std Metrics:", std_metrics)
 
     # Log results to wandb
-    evaluator.log_metrics_to_wandb(mean_metrics, run_name="cluster_train_test_split", loss_history=avg_episode_losses)
+    evaluator.log_metrics_to_wandb(metrics, run_name="train_test_split", loss_history=avg_episode_losses)
 
-    torch.save(model.state_dict(), os.join(os.getcwd(), 'IC50Pred_Model.pt'))
+    torch.save(model.state_dict(), os.path.join(os.getcwd(), ModelParams.MODEL_NAME))
 
 
 if __name__ == "__main__":
