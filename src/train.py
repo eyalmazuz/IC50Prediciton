@@ -1,4 +1,4 @@
-from model import IC50Bert
+from src.model import IC50Bert
 import torch
 from typing import List
 from torch import nn
@@ -19,21 +19,22 @@ class IC50BertTrainer:
         num_epochs: int,
         criterion: nn.Module,
         optimizer: optim.Optimizer,
+        device: torch.device = torch.device("cuda")
     ) -> None:
         self.model = model
         self.dataloader = dataloader
         self.num_epochs = num_epochs
         self.criterion = criterion
         self.optimizer = optimizer
+        self.device = device
 
     def train(self) -> List:
         """
         Train the specified model using the provided DataLoader, criterion and optimizer for number of epochs.
         :return: a List of average episode losses
         """
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.model.to(device)
-        self.criterion.to(device)
+        self.model.to(self.device)
+        self.criterion.to(self.device)
         avg_episode_losses = []
 
         for epoch in range(self.num_epochs):
@@ -45,10 +46,10 @@ class IC50BertTrainer:
             )
 
             for batch in tqdm_dataloader:
-                input_ids = batch["input_ids"].to(device)
-                token_type_ids = batch["token_type_ids"].to(device)
-                attention_mask = batch["attention_mask"].type(torch.BoolTensor).to(device)
-                labels = batch["labels"].to(device)
+                input_ids = batch["input_ids"].to(self.device)
+                token_type_ids = batch["token_type_ids"].to(self.device)
+                attention_mask = batch["attention_mask"].type(torch.BoolTensor).to(self.device)
+                labels = batch["labels"].to(self.device)
 
                 self.optimizer.zero_grad()
 
@@ -63,12 +64,11 @@ class IC50BertTrainer:
                 self.optimizer.step()
 
                 total_loss += loss.item()
-
                 tqdm_dataloader.set_postfix(loss=loss.item())
 
             average_loss = total_loss / len(self.dataloader)
             avg_episode_losses.append(round(average_loss, 4))
-            tqdm_dataloader.set_postfix(avg_loss=average_loss)
             tqdm_dataloader.close()
             print(f"Epoch {epoch + 1}/{self.num_epochs}, Loss: {average_loss:.4f}")
+
         return avg_episode_losses

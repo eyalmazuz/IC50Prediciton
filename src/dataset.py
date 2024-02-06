@@ -53,7 +53,7 @@ class TransformerCollate:
 
 
 def main() -> None:
-    df = pd.read_csv("./BindingDB_EQ_IC50_Subset.tsv", sep="\t")
+    df = pd.read_csv("../BindingDB_EQ_IC50_Subset.tsv", sep="\t")
 
     dataset = ProteinSMILESDataset(df)
 

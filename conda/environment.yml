@@ -1,0 +1,16 @@
+name: IC50Prediction
+channels:
+  - defaults
+dependencies:
+  - python~=3.11.5
+  - numpy
+  - pandas
+  - scikit-learn
+  - transformers
+  - wandb
+  - pip:
+    - --extra-index-url https://download.pytorch.org/whl/cu116
+    - torch
+    - torchvision
+    - torchaudio
+    - x_transformers==1.26.2
