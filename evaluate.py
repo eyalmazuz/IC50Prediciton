@@ -93,11 +93,11 @@ class IC50Evaluator:
 
 
 def main() -> None:
-    torch.cuda.empty_cache()
+    wandb.login(key=EvalConsts.WANDB_PROJ_NAME)
     all_metrics = []
     # Load and initialize dataloader with dataset
     data_path = os.path.join(os.getcwd(), DataConsts.DATASET_NAME)
-    df = pd.read_csv(data_path, sep="\t", low_memory=False)# .sample(frac=0.1)
+    df = pd.read_csv(data_path, sep="\t", low_memory=False)
     collate_fn = TransformerCollate(DataConsts.TOKENIZER_FOLDER)
 
     # train_df, test_df = train_test_split(df.sample(frac=0.33), test_size=0.25, random_state=42)
@@ -163,6 +163,8 @@ def main() -> None:
 
     # Log results to wandb
     evaluator.log_metrics_to_wandb(mean_metrics, run_name="RKFold_test_run", loss_history=avg_episode_losses)
+
+    torch.save(model.state_dict(), os.join(os.getcwd(), 'IC50Pred_Model.pt'))
 
 
 if __name__ == "__main__":
