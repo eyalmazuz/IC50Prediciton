@@ -74,7 +74,7 @@ def evaluate_ic50_predictor(model: IC50Bert, test_df: pd.DataFrame, collate_func
 def main():
     args = parse_arguments()
 
-    ic50_data = pd.read_csv(args.data_path, sep="\t", low_memory=False).sample(frac=0.001)
+    ic50_data = pd.read_csv(args.data_path, sep="\t", low_memory=False)
     collate_func = TransformerCollate(args.tokenizer_path)
     metrics_dict = {}
     avg_episode_losses = []
@@ -154,3 +154,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# TODO: 1. Add early stopping options
+# TODO: 2. Add option to read model and training configurations from json instead of editing consts.py
+# TODO: 3. raise exceptions for relevant args input errors
