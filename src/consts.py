@@ -6,7 +6,7 @@ from sklearn.metrics import (
 
 
 class DataConsts:
-    DATASET_NAME = "BindingDB_EQ_IC50_Subset.tsv"
+    DATASET_NAME = "Filtered_BindingDB_EQ_IC50_Subset"
     TOKENIZER_FOLDER = "Chem_Tokenizer"
 
 
@@ -39,7 +39,7 @@ class TrainConsts:
     TRAINING_CONFIG = {
         "batch_size": 4,
         "num_epochs": 100,
-        "learning_rate": 5e-4,
+        "learning_rate": 0.001,
     }
 
 

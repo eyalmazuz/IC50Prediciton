@@ -27,7 +27,7 @@ class ProteinSMILESDataset(Dataset):
         target_ic50 = row["IC50 (nM)"]
 
         # Calculate pIC50
-        target_pic50 = -np.log10(target_ic50)
+        target_pic50 = 9 - np.log10(target_ic50)
 
         data = ProteinData(ligand, protein, target_pic50)
 
@@ -52,8 +52,16 @@ class TransformerCollate:
         return encodings
 
 
+def filter_outlier_ic50(data: pd.DataFrame, threshold: float | int) -> pd.DataFrame:
+    mask = data["IC50 (nM)"] > threshold
+    data = data[~mask]
+    return data
+
+
 def main() -> None:
     df = pd.read_csv("../BindingDB_EQ_IC50_Subset.tsv", sep="\t")
+    df = filter_outlier_ic50(df, 10e5)
+    df.to_csv('../Filtered_BindingDB_EQ_IC50_Subset.tsv', sep="\t")
 
     dataset = ProteinSMILESDataset(df)
 
