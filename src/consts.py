@@ -6,7 +6,7 @@ from sklearn.metrics import (
 
 
 class DataConsts:
-    DATASET_NAME = "Filtered_BindingDB_EQ_IC50_Subset"
+    DATASET_NAME = "Filtered_BindingDB_EQ_IC50_Subset.tsv"
     TOKENIZER_FOLDER = "Chem_Tokenizer"
 
 

@@ -89,8 +89,8 @@ class IC50BertTrainer:
             avg_episode_losses.append(round(episode_loss, 4))
             tqdm_dataloader.close()
             print(f"Epoch {epoch + 1}/{self.num_epochs}, Loss: {episode_loss:.4f}")
-            if self.early_stopper.early_stop(episode_loss):
-                print(f"\n--- Early stopping condition met! ---\n")
-                break
+            # if self.early_stopper.early_stop(episode_loss):
+            #     print(f"\n--- Early stopping condition met! ---\n")
+            #     break
 
         return avg_episode_losses
