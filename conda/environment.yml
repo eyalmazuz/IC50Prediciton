@@ -9,8 +9,8 @@ dependencies:
   - transformers
   - wandb
   - pip:
-    - --extra-index-url https://download.pytorch.org/whl/cu116
-    - torch
+    - --extra-index-url https://download.pytorch.org/whl/cu118
+    - torch==2.0.0
     - torchvision
     - torchaudio
     - x_transformers==1.26.2
