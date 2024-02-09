@@ -1,5 +1,6 @@
 import os
 import sys
+from typing import Dict
 from datetime import datetime
 from time import sleep
 import numpy as np
@@ -31,7 +32,7 @@ def get_dataloader(data: pd.DataFrame, collate_func: TransformerCollate, args, t
     return dataloader
 
 
-def get_model_and_optimizer(collate_func: TransformerCollate, args):
+def get_model_and_optimizer(collate_func: TransformerCollate, args) -> (IC50Bert, torch.optim):
     # Initialize model
     model = IC50Bert(
         num_tokens=collate_func.tokenizer.vocab_size + 3,
@@ -47,7 +48,9 @@ def get_model_and_optimizer(collate_func: TransformerCollate, args):
     return model, optimizer
 
 
-def train_ic50_predictor(train_df: pd.DataFrame, val_df: pd.DataFrame | None, collate_func: TransformerCollate, args):
+def train_ic50_predictor(
+        train_df: pd.DataFrame, collate_func: TransformerCollate, args, val_df: pd.DataFrame | None = None
+) -> (IC50Bert, Dict):
     criterion = torch.nn.MSELoss()
     train_dataloader = get_dataloader(train_df, collate_func, args, test=False)
     val_dataloader = None if val_df is None else get_dataloader(val_df, collate_func, args, test=True)
@@ -66,7 +69,7 @@ def train_ic50_predictor(train_df: pd.DataFrame, val_df: pd.DataFrame | None, co
     return model, avg_episode_losses
 
 
-def evaluate_ic50_predictor(model: IC50Bert, test_df: pd.DataFrame, collate_func: TransformerCollate, args):
+def evaluate_ic50_predictor(model: IC50Bert, test_df: pd.DataFrame, collate_func: TransformerCollate, args) -> Dict:
     test_dataloader = get_dataloader(test_df, collate_func, args, test=True)
     evaluator = IC50Evaluator(model, test_dataloader, device=torch.device(args.device))
     metrics = evaluator.evaluate()
@@ -92,13 +95,12 @@ def main():
         if args.train_method == TrainConsts.TRAIN_TEST_SPLIT:
             train_val, test = train_test_split(ic50_data, test_size=args.test_ratio, random_state=42, shuffle=True)
             train, val = train_test_split(train_val, test_size=args.test_ratio, random_state=42, shuffle=True)
-            model, avg_episode_losses = train_ic50_predictor(train, val, collate_func, args)
+            model, avg_episode_losses = train_ic50_predictor(train, collate_func, args, val)
             metrics_dict = evaluate_ic50_predictor(model, test, collate_func, args)
 
         if args.train_method == TrainConsts.CROSS_VAL:
             all_metrics = []
             rkf = RepeatedKFold(n_splits=args.num_folds, n_repeats=args.num_repeats, random_state=42)
-            # TODO: ADD Validation splits here
             for fold, (train_idx, test_idx) in enumerate(rkf.split(ic50_data)):
                 repetition = fold // args.num_folds
                 train, test = ic50_data.iloc[train_idx], ic50_data.iloc[test_idx]
@@ -159,6 +161,5 @@ def main():
 if __name__ == "__main__":
     main()
 
-# TODO: 1. Add validation set in training for the early stopping
-# TODO: 2. Add option to read model and training configurations from json instead of editing consts.py
-# TODO: 3. raise exceptions for relevant args input errors
+# TODO: 1. Add option to read model and training configurations from json instead of editing consts.py
+# TODO: 2. raise exceptions for relevant args input errors
