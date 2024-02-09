@@ -7,6 +7,24 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 
+class EarlyStopper:
+    def __init__(self, patience: int = 1, min_delta: float = 0.0):
+        self.patience = patience
+        self.min_delta = min_delta
+        self.counter = 0
+        self.min_validation_loss = float('inf')
+
+    def early_stop(self, validation_loss):
+        if validation_loss < self.min_validation_loss:
+            self.min_validation_loss = validation_loss
+            self.counter = 0
+        elif validation_loss > (self.min_validation_loss + self.min_delta):
+            self.counter += 1
+            if self.counter >= self.patience:
+                return True
+        return False
+
+
 class IC50BertTrainer:
     """
     Class used in the training of an IC50Bert model
@@ -27,6 +45,7 @@ class IC50BertTrainer:
         self.criterion = criterion
         self.optimizer = optimizer
         self.device = device
+        self.early_stopper = EarlyStopper(patience=10, min_delta=0.05)
 
     def train(self) -> List:
         """
@@ -66,9 +85,12 @@ class IC50BertTrainer:
                 total_loss += loss.item()
                 tqdm_dataloader.set_postfix(loss=loss.item())
 
-            average_loss = total_loss / len(self.dataloader)
-            avg_episode_losses.append(round(average_loss, 4))
+            episode_loss = total_loss / len(self.dataloader)
+            avg_episode_losses.append(round(episode_loss, 4))
             tqdm_dataloader.close()
-            print(f"Epoch {epoch + 1}/{self.num_epochs}, Loss: {average_loss:.4f}")
+            print(f"Epoch {epoch + 1}/{self.num_epochs}, Loss: {episode_loss:.4f}")
+            if self.early_stopper.early_stop(episode_loss):
+                print(f"\n--- Early stopping condition met! ---\n")
+                break
 
         return avg_episode_losses
