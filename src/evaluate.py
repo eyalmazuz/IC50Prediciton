@@ -67,7 +67,8 @@ class IC50Evaluator:
             project_entity: str = EvalConsts.WANDB_ENTITY,
             training_config: Dict[str, float] = TrainConsts.TRAINING_CONFIG,
             run_name: str = None,
-            loss_history: Optional[List] = None
+            train_loss_history: Optional[List] = None,
+            validation_loss_history: Optional[List] = None
     ):
         """
         This method will log the provided metrics dictionary to wandb project
@@ -76,17 +77,23 @@ class IC50Evaluator:
         :param project_entity: entity name under which to find the wandb project
         :param training_config: dictionary of training hyperparameter configuration to log evaluation results
         :param run_name: parameter used to name the run in wandb. default is None in which case wandb will assign a name
-        :param loss_history: a List of [episodes, loss] to plot
+        :param train_loss_history: a List of train_loss to plot
+        :param validation_loss_history: a List of val_loss to plot
         """
         wandb.init(project=project_name, entity=project_entity, config=training_config, name=run_name)
         wandb.log(metrics_dict)
-        if loss_history:
-            data = [[x + 1, y] for (x, y) in enumerate(loss_history)]
-            loss_table = wandb.Table(data=data, columns=["episodes", "batch_loss"])
+        if train_loss_history:
+            data = [[x + 1, y] for (x, y) in enumerate(train_loss_history)]
+            columns = ["episodes", "training_loss"]
+            if validation_loss_history:
+                data = [[x, y, validation_loss_history[x - 1]] for (x, y) in data]
+                columns += ["validation_loss"]
+
+            loss_table = wandb.Table(data=data, columns=columns)
             wandb.log(
                 {
                     "history_loss": wandb.plot.line(
-                        loss_table, "episodes", "batch_loss", title="Average episode loss vs episode"
+                        loss_table, "episodes", "loss", title="Average episode loss vs episode"
                     )
                 }
             )

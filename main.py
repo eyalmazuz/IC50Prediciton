@@ -26,7 +26,7 @@ def get_dataloader(data: pd.DataFrame, collate_func: TransformerCollate, args, t
         batch_size=args.batch_size,
         shuffle=False if test else True,
         collate_fn=collate_func,
-        num_workers=args.n_workers
+        # num_workers=args.n_workers
     )
     return dataloader
 
@@ -47,14 +47,16 @@ def get_model_and_optimizer(collate_func: TransformerCollate, args):
     return model, optimizer
 
 
-def train_ic50_predictor(train_df: pd.DataFrame, collate_func: TransformerCollate, args):
+def train_ic50_predictor(train_df: pd.DataFrame, val_df: pd.DataFrame | None, collate_func: TransformerCollate, args):
     criterion = torch.nn.MSELoss()
     train_dataloader = get_dataloader(train_df, collate_func, args, test=False)
+    val_dataloader = None if val_df is None else get_dataloader(val_df, collate_func, args, test=True)
     model, optimizer = get_model_and_optimizer(collate_func, args)
 
     trainer = IC50BertTrainer(
         model=model,
-        dataloader=train_dataloader,
+        train_dataloader=train_dataloader,
+        val_dataloader=val_dataloader,
         num_epochs=args.epochs,
         criterion=criterion,
         optimizer=optimizer,
@@ -74,10 +76,10 @@ def evaluate_ic50_predictor(model: IC50Bert, test_df: pd.DataFrame, collate_func
 def main():
     args = parse_arguments()
 
-    ic50_data = pd.read_csv(args.data_path, sep="\t", low_memory=False)
+    ic50_data = pd.read_csv(args.data_path, sep="\t", low_memory=False, index_col=0).sample(frac=0.001)
     collate_func = TransformerCollate(args.tokenizer_path)
     metrics_dict = {}
-    avg_episode_losses = []
+    avg_episode_losses = {}
 
     if args.device == "cuda":
         if torch.cuda.is_available():
@@ -88,14 +90,15 @@ def main():
 
     if args.train:
         if args.train_method == TrainConsts.TRAIN_TEST_SPLIT:
-            train, test = train_test_split(ic50_data, test_size=args.test_ratio, random_state=42, shuffle=True)
-            model, avg_episode_losses = train_ic50_predictor(train, collate_func, args)
+            train_val, test = train_test_split(ic50_data, test_size=args.test_ratio, random_state=42, shuffle=True)
+            train, val = train_test_split(train_val, test_size=args.test_ratio, random_state=42, shuffle=True)
+            model, avg_episode_losses = train_ic50_predictor(train, val, collate_func, args)
             metrics_dict = evaluate_ic50_predictor(model, test, collate_func, args)
 
         if args.train_method == TrainConsts.CROSS_VAL:
             all_metrics = []
             rkf = RepeatedKFold(n_splits=args.num_folds, n_repeats=args.num_repeats, random_state=42)
-
+            # TODO: ADD Validation splits here
             for fold, (train_idx, test_idx) in enumerate(rkf.split(ic50_data)):
                 repetition = fold // args.num_folds
                 train, test = ic50_data.iloc[train_idx], ic50_data.iloc[test_idx]
@@ -148,7 +151,8 @@ def main():
             project_entity=args.wandb_entity,
             training_config=train_conf,
             run_name=f'{train_method + "_" + str(datetime.now().strftime("%m_%d_%H_%M_%S"))}',
-            loss_history=avg_episode_losses if avg_episode_losses else None
+            train_loss_history=avg_episode_losses.get("Train"),
+            validation_loss_history=avg_episode_losses.get("Validation")
         )
 
 
