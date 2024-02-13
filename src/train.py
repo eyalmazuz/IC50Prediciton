@@ -8,20 +8,35 @@ from tqdm import tqdm
 
 
 class EarlyStopper:
-    def __init__(self, patience: int = 1, min_delta: float = 0.0):
+    """Early stopping functionality for training"""
+    def __init__(self, patience: int = 1, min_delta: float = 0.0, min_stopping_episode: int = 0):
+        """
+        :param patience: Number of episodes without improvement to wait before stopping
+        :param min_delta: tolerance around min validation, if within tolerance counter doesn't increase
+        :param min_stopping_episode: early stopping isn't considered before this episode
+        """
         self.patience = patience
         self.min_delta = min_delta
+        self.min_stopping_episode = min_stopping_episode
         self.counter = 0
         self.min_validation_loss = float('inf')
 
-    def early_stop(self, validation_loss: float):
+    def early_stop(self, validation_loss: float, episode: int) -> bool:
+        """
+        Consider early stopping
+        :param validation_loss: validation loss of the current episode
+        :param episode: number of current episode
+        :return: Boolean signal indicating if early stopping criteria have been met
+        """
         if validation_loss < self.min_validation_loss:
             self.min_validation_loss = validation_loss
             self.counter = 0
+
         elif validation_loss > (self.min_validation_loss + self.min_delta):
             self.counter += 1
-            if self.counter >= self.patience:
+            if self.counter >= self.patience and episode >= self.min_stopping_episode:
                 return True
+
         return False
 
 
@@ -47,7 +62,7 @@ class IC50BertTrainer:
         self.criterion = criterion
         self.optimizer = optimizer
         self.device = device
-        self.early_stopper = EarlyStopper(patience=10, min_delta=0.05)
+        self.early_stopper = EarlyStopper(patience=10, min_delta=0.1, min_stopping_episode=50)
 
     def train(self) -> Dict[str, List[float]]:
         """
