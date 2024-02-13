@@ -79,7 +79,7 @@ def evaluate_ic50_predictor(model: IC50Bert, test_df: pd.DataFrame, collate_func
 def main():
     args = parse_arguments()
 
-    ic50_data = pd.read_csv(args.data_path, sep="\t", low_memory=False, index_col=0).sample(frac=0.001)
+    ic50_data = pd.read_csv(args.data_path, sep="\t", low_memory=False, index_col=0)
     collate_func = TransformerCollate(args.tokenizer_path)
     metrics_dict = {}
     avg_episode_losses = {}
