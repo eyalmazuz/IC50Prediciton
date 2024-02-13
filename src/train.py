@@ -131,7 +131,7 @@ class IC50BertTrainer:
 
             # End of epoch
             print(results)
-            if self.early_stopper.early_stop(stop_loss):
+            if self.early_stopper.early_stop(stop_loss, epoch):
                 print(f"\n--- Early stopping condition met! ---\n")
                 break
 
