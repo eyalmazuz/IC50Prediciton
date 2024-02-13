@@ -76,7 +76,7 @@ def evaluate_ic50_predictor(model: IC50Bert, test_df: pd.DataFrame, collate_func
 def main():
     args = parse_arguments()
 
-    ic50_data = pd.read_csv(args.data_path, sep="\t", low_memory=False, index_col=0).sample(frac=0.001)
+    ic50_data = pd.read_csv(args.data_path, sep="\t", low_memory=False, index_col=0)
     collate_func = TransformerCollate(args.tokenizer_path)
     metrics_dict = {}
     avg_episode_losses = {}
@@ -98,7 +98,6 @@ def main():
         if args.train_method == TrainConsts.CROSS_VAL:
             all_metrics = []
             rkf = RepeatedKFold(n_splits=args.num_folds, n_repeats=args.num_repeats, random_state=42)
-            # TODO: ADD Validation splits here
             for fold, (train_idx, test_idx) in enumerate(rkf.split(ic50_data)):
                 repetition = fold // args.num_folds
                 train, test = ic50_data.iloc[train_idx], ic50_data.iloc[test_idx]
