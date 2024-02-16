@@ -86,10 +86,11 @@ def main():
     if args.eval:
         train_method = args.train_method if args.train else "pretrained"
         train_conf = {
-                "batch_size": args.batch_size,
-                "num_epochs": args.epochs,
-                "learning_rate": args.learning_rate,
-                "train_method": train_method
+            "target_metric": args.target_metric,
+            "batch_size": args.batch_size,
+            "num_epochs": args.epochs,
+            "learning_rate": args.learning_rate,
+            "train_method": train_method
         }
 
         wandb_run = IC50Evaluator.log_metrics_to_wandb(
@@ -97,7 +98,7 @@ def main():
             project_name=args.wandb_proj,
             project_entity=args.wandb_entity,
             training_config=train_conf,
-            run_name=f'{train_method + "_" + str(datetime.now().strftime("%m_%d_%H_%M_%S"))}'
+            run_name=f'{args.target_metric + "_" + train_method + "_" + str(datetime.now().strftime("%m_%d_%H_%M_%S"))}'
         )
 
     ic50_data = pd.read_csv(args.data_path, sep="\t", low_memory=False)
