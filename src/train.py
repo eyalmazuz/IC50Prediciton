@@ -75,7 +75,7 @@ class IC50BertTrainer:
 
         for epoch in range(self.num_epochs):
             self.model.train()
-            total_loss = 0
+            total_loss = torch.tensor(0.0, device=self.device)
 
             tqdm_dataloader = tqdm(
                 self.dataloader, desc=f"Epoch {epoch+1}/{self.num_epochs}"
@@ -84,8 +84,6 @@ class IC50BertTrainer:
             for batch in tqdm_dataloader:
                 input_ids, token_type_ids, attention_mask, labels = self.get_from_batch(batch)
 
-                self.optimizer.zero_grad()
-
                 outputs = self.model(
                     ids=input_ids,
                     token_type_ids={"token_type_ids": token_type_ids},
@@ -93,13 +91,13 @@ class IC50BertTrainer:
                 )
 
                 loss = self.criterion(outputs, labels)
+                self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
 
-                total_loss += loss.item()
-                tqdm_dataloader.set_postfix(loss=loss.item())
+                total_loss += loss
 
-            train_episode_loss = total_loss / len(self.dataloader)
+            train_episode_loss = total_loss.item() / len(self.dataloader)
             stop_loss = train_episode_loss
             avg_episode_losses["Train"].append(round(train_episode_loss, 4))
             results = f"Epoch {epoch + 1}/{self.num_epochs} | Loss: {train_episode_loss:.4f}"
@@ -107,7 +105,7 @@ class IC50BertTrainer:
             if self.val_dataloader:
                 # Validation
                 self.model.eval()  # Set the model to evaluation mode
-                val_total_loss = 0
+                val_total_loss = torch.tensor(0.0, device=self.device)
 
                 with torch.no_grad():  # Disable gradient computation during validation
                     for val_batch in self.val_dataloader:
@@ -122,9 +120,9 @@ class IC50BertTrainer:
                         )
 
                         val_loss = self.criterion(val_outputs, val_labels)
-                        val_total_loss += val_loss.item()
+                        val_total_loss += val_loss
 
-                val_episode_loss = val_total_loss / len(self.val_dataloader)
+                val_episode_loss = val_total_loss.item() / len(self.val_dataloader)
                 stop_loss = val_episode_loss
                 avg_episode_losses["Validation"].append(round(val_episode_loss, 4))
                 results += f" | Val_Loss: {val_episode_loss:.4f}"

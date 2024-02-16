@@ -27,7 +27,8 @@ def get_dataloader(data: pd.DataFrame, collate_func: TransformerCollate, args, t
         batch_size=args.batch_size,
         shuffle=False if test else True,
         collate_fn=collate_func,
-        # num_workers=args.n_workers
+        # num_workers=args.n_workers,
+        pin_memory=True
     )
     return dataloader
 
