@@ -99,7 +99,7 @@ def main():
             project_name=args.wandb_proj,
             project_entity=args.wandb_entity,
             training_config=train_conf,
-            run_name=f'{args.target_metric + "_" + train_method + "_" + str(datetime.now().strftime("%m_%d_%H_%M_%S"))}'
+            run_name=f'{args.target_metric + "_metric_" + str(datetime.now().strftime("%m_%d_%H_%M_%S"))}'
         )
 
     ic50_data = pd.read_csv(args.data_path, sep="\t", low_memory=False)
