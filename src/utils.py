@@ -27,7 +27,9 @@ def parse_arguments():
 
     # Data args for training / evaluation
     parser.add_argument('--data_path', type=str, help='full path to dataset',
-                        default=f'{os.path.join(os.getcwd(), DataConsts.DATASET_NAME)}')
+                        default=f'{os.path.join(os.getcwd(), DataConsts.IC50_DATASET_NAME)}')
+    parser.add_argument('--target_metric', choices=["ic50", "kd"], default='ic50',
+                        help='drug to protein interaction metric')
     parser.add_argument('--tokenizer_path', type=str, help='full path to tokenizer folder',
                         default=f'{os.path.join(os.getcwd(), DataConsts.TOKENIZER_FOLDER)}')
 
