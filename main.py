@@ -86,6 +86,7 @@ def main():
     if args.eval:
         train_method = args.train_method if args.train else "pretrained"
         train_conf = {
+            "dataset_name": os.path.basename(args.data_path),
             "target_metric": args.target_metric,
             "batch_size": args.batch_size,
             "num_epochs": args.epochs,
