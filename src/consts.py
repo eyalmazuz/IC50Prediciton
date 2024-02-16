@@ -23,7 +23,6 @@ class EvalConsts:
     }
 
     WANDB_PROJ_NAME = "IC50 Prediction"
-    WANDB_KEY = "49e20ebf47e19b7061f97e1e223790d896a6b31a"
     WANDB_ENTITY = "bgu-sise"
 
 

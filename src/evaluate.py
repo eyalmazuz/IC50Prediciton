@@ -62,46 +62,27 @@ class IC50Evaluator:
 
     @staticmethod
     def log_metrics_to_wandb(
-            metrics_dict: Dict[str, float],
+            wandb_key: str,
             project_name: str = EvalConsts.WANDB_PROJ_NAME,
             project_entity: str = EvalConsts.WANDB_ENTITY,
             training_config: Dict[str, float] = TrainConsts.TRAINING_CONFIG,
             run_name: str = None,
-            train_loss_history: Optional[List] = None,
-            validation_loss_history: Optional[List] = None
     ):
         """
         This method will log the provided metrics dictionary to wandb project
-        :param metrics_dict: dict with metric names as keys and float values
+        :param wandb_key: API key
         :param project_name: wandb project name where metrics will be logged. default name is set in consts.py
         :param project_entity: entity name under which to find the wandb project
         :param training_config: dictionary of training hyperparameter configuration to log evaluation results
         :param run_name: parameter used to name the run in wandb. default is None in which case wandb will assign a name
-        :param train_loss_history: a List of train_loss to plot
-        :param validation_loss_history: a List of val_loss to plot
         """
+        wandb.login(key=wandb_key)
         wandb.init(project=project_name, entity=project_entity, config=training_config, name=run_name)
-        wandb.log(metrics_dict)
-        if train_loss_history:
-            data = [[x + 1, y] for (x, y) in enumerate(train_loss_history)]
-            columns = ["episodes", "training_loss"]
-            if validation_loss_history:
-                data = [[x, y, validation_loss_history[x - 1]] for (x, y) in data]
-                columns += ["validation_loss"]
-
-            loss_table = wandb.Table(data=data, columns=columns)
-            wandb.log(
-                {
-                    "history_loss": wandb.plot.line(
-                        loss_table, "episodes", "loss", title="Average episode loss vs episode"
-                    )
-                }
-            )
-        wandb.finish()
+        return wandb.run
 
 
 def main() -> None:
-    wandb.login(key=EvalConsts.WANDB_KEY)
+    wandb.login(key="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
     # Load and initialize dataloader with dataset
     data_path = os.path.join(os.getcwd(), DataConsts.DATASET_NAME)
     df = pd.read_csv(data_path, sep="\t", low_memory=False)

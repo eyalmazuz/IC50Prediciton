@@ -50,7 +50,7 @@ def get_model_and_optimizer(collate_func: TransformerCollate, args) -> (IC50Bert
 
 
 def train_ic50_predictor(
-        train_df: pd.DataFrame, collate_func: TransformerCollate, args, val_df: pd.DataFrame | None = None
+        train_df: pd.DataFrame, collate_func: TransformerCollate, args, val_df: pd.DataFrame | None = None, wandb_run=None
 ) -> (IC50Bert, Dict):
     criterion = torch.nn.MSELoss()
     train_dataloader = get_dataloader(train_df, collate_func, args, test=False)
@@ -64,7 +64,8 @@ def train_ic50_predictor(
         num_epochs=args.epochs,
         criterion=criterion,
         optimizer=optimizer,
-        device=torch.device(args.device)
+        device=torch.device(args.device),
+        wandb_run=wandb_run
     )
     avg_episode_losses = trainer.train()
     return model, avg_episode_losses
@@ -79,6 +80,24 @@ def evaluate_ic50_predictor(model: IC50Bert, test_df: pd.DataFrame, collate_func
 
 def main():
     args = parse_arguments()
+
+    wandb_run = None
+    if args.eval:
+        train_method = args.train_method if args.train else "pretrained"
+        train_conf = {
+                "batch_size": args.batch_size,
+                "num_epochs": args.epochs,
+                "learning_rate": args.learning_rate,
+                "train_method": train_method
+        }
+
+        wandb_run = IC50Evaluator.log_metrics_to_wandb(
+            wandb_key=args.wandb_key,
+            project_name=args.wandb_proj,
+            project_entity=args.wandb_entity,
+            training_config=train_conf,
+            run_name=f'{train_method + "_" + str(datetime.now().strftime("%m_%d_%H_%M_%S"))}'
+        )
 
     ic50_data = pd.read_csv(args.data_path, sep="\t", low_memory=False, index_col=0)
     collate_func = TransformerCollate(args.tokenizer_path)
@@ -96,7 +115,7 @@ def main():
         if args.train_method == TrainConsts.TRAIN_TEST_SPLIT:
             train_val, test = train_test_split(ic50_data, test_size=args.test_ratio, random_state=42, shuffle=True)
             train, val = train_test_split(train_val, test_size=args.test_ratio, random_state=42, shuffle=True)
-            model, avg_episode_losses = train_ic50_predictor(train, collate_func, args, val)
+            model, avg_episode_losses = train_ic50_predictor(train, collate_func, args, val, wandb_run)
             metrics_dict = evaluate_ic50_predictor(model, test, collate_func, args)
 
         if args.train_method == TrainConsts.CROSS_VAL:
@@ -106,7 +125,7 @@ def main():
                 repetition = fold // args.num_folds
                 train, test = ic50_data.iloc[train_idx], ic50_data.iloc[test_idx]
 
-                model, avg_episode_losses = train_ic50_predictor(train, collate_func, args)
+                model, avg_episode_losses = train_ic50_predictor(train, collate_func, args, wandb_run)
                 metrics = evaluate_ic50_predictor(model, test, collate_func, args)
                 print(f"\nFold {fold + 1 - args.num_folds * repetition }/{args.num_folds}, "
                       f"Repetition {repetition + 1} -\nMetrics: {metrics}")
@@ -136,31 +155,17 @@ def main():
 
     # Log results to wandb
     if args.eval and metrics_dict:
-        wandb.login(key=args.wandb_key)
-        # Allow time for login
-        sleep(10)
-
-        train_method = args.train_method if args.train else "pretrained"
-        train_conf = {
-            "batch_size": args.batch_size,
-            "num_epochs": args.epochs,
-            "learning_rate": args.learning_rate,
-            "train_method": train_method
-        }
-
-        IC50Evaluator.log_metrics_to_wandb(
-            metrics_dict=metrics_dict,
-            project_name=args.wandb_proj,
-            project_entity=args.wandb_entity,
-            training_config=train_conf,
-            run_name=f'{train_method + "_" + str(datetime.now().strftime("%m_%d_%H_%M_%S"))}',
-            train_loss_history=avg_episode_losses.get("Train"),
-            validation_loss_history=avg_episode_losses.get("Validation")
-        )
+        wandb.log(metrics_dict)
+        wandb.finish()
 
 
 if __name__ == "__main__":
     main()
-
+    # import cProfile
+    # cProfile.run('main()', sort='cumtime')
+    # from torch.profiler import profile, record_function, ProfilerActivity
+    # with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], profile_memory=True) as prof:
+    #     main()
+    # print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=10))
 # TODO: 1. Add option to read model and training configurations from json instead of editing consts.py
 # TODO: 2. raise exceptions for relevant args input errors

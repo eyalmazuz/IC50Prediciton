@@ -53,7 +53,8 @@ class IC50BertTrainer:
         num_epochs: int,
         criterion: nn.Module,
         optimizer: optim.Optimizer,
-        device: torch.device = torch.device("cuda")
+        wandb_run=None,
+        device: torch.device = torch.device("cuda"),
     ) -> None:
         self.model = model
         self.dataloader = train_dataloader
@@ -61,8 +62,9 @@ class IC50BertTrainer:
         self.num_epochs = num_epochs
         self.criterion = criterion
         self.optimizer = optimizer
+        self.wandb_run = wandb_run
         self.device = device
-        self.early_stopper = EarlyStopper(patience=10, min_delta=0.1, min_stopping_episode=50)
+        self.early_stopper = EarlyStopper(patience=10, min_delta=0.1, min_stopping_episode=10)
 
     def train(self) -> Dict[str, List[float]]:
         """
@@ -98,6 +100,8 @@ class IC50BertTrainer:
                 total_loss += loss
 
             train_episode_loss = total_loss.item() / len(self.dataloader)
+            if self.wandb_run:
+                self.wandb_run.log({'training_loss': train_episode_loss, 'epoch': epoch})
             stop_loss = train_episode_loss
             avg_episode_losses["Train"].append(round(train_episode_loss, 4))
             results = f"Epoch {epoch + 1}/{self.num_epochs} | Loss: {train_episode_loss:.4f}"
@@ -123,6 +127,8 @@ class IC50BertTrainer:
                         val_total_loss += val_loss
 
                 val_episode_loss = val_total_loss.item() / len(self.val_dataloader)
+                if self.wandb_run:
+                    self.wandb_run.log({'validation_loss': val_episode_loss, 'epoch': epoch})
                 stop_loss = val_episode_loss
                 avg_episode_losses["Validation"].append(round(val_episode_loss, 4))
                 results += f" | Val_Loss: {val_episode_loss:.4f}"

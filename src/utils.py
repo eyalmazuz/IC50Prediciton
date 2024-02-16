@@ -41,8 +41,7 @@ def parse_arguments():
     parser.add_argument('--eval', action='store_true', help='indicate if evaluation is required')
     parser.add_argument('--wandb_proj', type=str, default=EvalConsts.WANDB_PROJ_NAME,
                         help='name of wandb project to upload results')
-    parser.add_argument('--wandb_key', type=str, default=EvalConsts.WANDB_KEY,
-                        help='wandb api key for user login')
+    parser.add_argument('--wandb_key', type=str, help='wandb api key for user login')
     parser.add_argument('--wandb_entity', type=str, default=EvalConsts.WANDB_ENTITY,
                         help='wandb entity associated with the project')
 
