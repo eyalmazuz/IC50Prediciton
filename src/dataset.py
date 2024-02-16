@@ -9,7 +9,7 @@ from transformers import AutoTokenizer
 class ProteinData(NamedTuple):
     ligand: str
     protein: str
-    interaction_metric: int     # IC50 or K_d
+    interaction_metric: int  # IC50 or K_d
 
 
 class ProteinSMILESDataset(Dataset):
@@ -35,6 +35,25 @@ class ProteinSMILESDataset(Dataset):
         else:
             target_kd = row["Kd (nM)"]
             target = 9 - np.log10(target_kd)
+
+        data = ProteinData(ligand, protein, target)
+
+        return data
+
+
+class ProteinSMILESDavisDataset(Dataset):
+    def __init__(self, df: pd.DataFrame) -> None:
+        self.df = df
+
+    def __len__(self) -> int:
+        return len(self.df)
+
+    def __getitem__(self, idx: int) -> ProteinData:
+        row = self.df.iloc[idx]
+
+        ligand = row["SMILES"]
+        protein = row["Sequence"]
+        target = row["Kd"]
 
         data = ProteinData(ligand, protein, target)
 

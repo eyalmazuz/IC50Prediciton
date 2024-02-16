@@ -8,7 +8,7 @@ import pandas as pd
 import torch
 import wandb
 from torch.utils.data import DataLoader
-from src.dataset import ProteinSMILESDataset, TransformerCollate
+from src.dataset import ProteinSMILESDataset, TransformerCollate, ProteinSMILESDavisDataset
 from src.model import IC50Bert
 from src.train import IC50BertTrainer
 from src.evaluate import IC50Evaluator
@@ -22,7 +22,10 @@ from sklearn.model_selection import RepeatedKFold
 def get_dataloader(data: pd.DataFrame, collate_func: TransformerCollate, args, test: bool = False):
     index_reset_data = data.reset_index()
     ic50_metric = True if args.target_metric == "ic50" else False
-    dataset = ProteinSMILESDataset(index_reset_data, ic50_metric=ic50_metric, kd_metric=not ic50_metric)
+    if args.data_path.endswith(".csv"):
+        dataset = ProteinSMILESDavisDataset(index_reset_data)
+    else:
+        dataset = ProteinSMILESDataset(index_reset_data, ic50_metric=ic50_metric, kd_metric=not ic50_metric)
     dataloader = DataLoader(
         dataset,
         batch_size=args.batch_size,
@@ -102,7 +105,12 @@ def main():
             run_name=f'{args.target_metric + "_metric_" + str(datetime.now().strftime("%m_%d_%H_%M_%S"))}'
         )
 
-    ic50_data = pd.read_csv(args.data_path, sep="\t", low_memory=False)
+    if args.data_path.endswith(".tsv"):
+        ic50_data = pd.read_csv(args.data_path, sep="\t", low_memory=False)
+    elif args.data_path.endswith(".csv"):
+        ic50_data = pd.read_csv(args.data_path, low_memory=False)
+    else:
+        raise ValueError("Data isn't a valid format")
     collate_func = TransformerCollate(args.tokenizer_path)
     metrics_dict = {}
     avg_episode_losses = {}
