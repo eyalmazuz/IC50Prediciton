@@ -64,6 +64,8 @@ def parse_arguments():
                         help='stochastic depth - dropout rate entire layer')
     parser.add_argument('--ff_dropout', type=float, default=ModelParams.DROPOUT,
                         help='feedforward dropout')
+    parser.add_argument('--optim', choices=["adam", "adamw", 'radam'], default='radam',
+                        help='Device for model training')
 
     # technical parameters
     parser.add_argument('--n_workers', type=int, default=min(6, os.cpu_count()),

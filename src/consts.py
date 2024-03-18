@@ -45,10 +45,10 @@ class TrainConsts:
 
 
 class ModelParams:
-    EMBED_DIM = 768
-    DIM = 768
+    EMBED_DIM = 128
+    DIM = 512
     DEPTH = 4
-    HEADS = 8
+    HEADS = 4
     DROPOUT = 0.1
 
     MODEL_NAME = "IC50Pred_Model.pt"

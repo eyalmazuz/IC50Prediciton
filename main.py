@@ -47,9 +47,21 @@ def get_model_and_optimizer(collate_func: TransformerCollate, args) -> (IC50Bert
         ff_dropout=args.ff_dropout, layer_dropout=args.layer_dropout
     )
 
-    optimizer = torch.optim.AdamW(
-        model.parameters(), lr=args.learning_rate
-    )
+    if args.optim == "adam":
+        optimizer = torch.optim.Adam(
+            model.parameters(), lr=args.learning_rate, weight_decay=1e-05
+        )
+
+    elif args.optim == "adamw":
+        optimizer = torch.optim.AdamW(
+            model.parameters(), lr=args.learning_rate, weight_decay=1e-05
+        )
+
+    else:
+        optimizer = torch.optim.RAdam(
+            model.parameters(), lr=args.learning_rate, weight_decay=1e-05
+        )
+
     return model, optimizer
 
 
